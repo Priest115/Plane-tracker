@@ -60,7 +60,7 @@ def load_state():
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             pass
-    return {"date": "", "airborne": {}, "seen_warks": {}, "seen_uk": {}, "seen_global": {}}
+    return {"date": "", "airborne": {}, "seen_warks": {}, "seen_uk": {}, "seen_global": {}, "heartbeat_date": ""}
 
 
 def save_state(state):
@@ -72,8 +72,9 @@ def maybe_reset_daily(state):
     today = str(date.today())
     if state.get("date") != today:
         state.update({"date": today, "seen_warks": {}, "seen_uk": {}, "seen_global": {}})
-    for key in ("airborne", "seen_warks", "seen_uk", "seen_global"):
+    for key in ("airborne", "seen_warks", "seen_uk", "seen_global", "heartbeat_date"):
         state.setdefault(key, {})
+    state.setdefault("heartbeat_date", "")
     return state
 
 
@@ -201,6 +202,20 @@ def ntfy(title, message, priority=3, tags="", url=None):
         log(f"  -> ntfy FAILED: {e}")
 
 
+def check_heartbeat(state):
+    today = str(date.today())
+    if state.get("heartbeat_date") != today:
+        state["heartbeat_date"] = today
+        log("  Sending daily heartbeat")
+        ntfy(
+            title="Plane Tracker - running",
+            message=f"Still active. Polling every 5 minutes.\n{today}",
+            priority=2,
+            tags="white_check_mark",
+        )
+    return state
+
+
 def check_warbids(state):
     for bird in WARBIRD_WATCHLIST:
         reg  = bird.get("reg")
@@ -294,6 +309,7 @@ def check_military(state):
 def run_once():
     log("-- Poll --")
     state = maybe_reset_daily(load_state())
+    state = check_heartbeat(state)
     state = check_warbids(state)
     state = check_military(state)
     save_state(state)
