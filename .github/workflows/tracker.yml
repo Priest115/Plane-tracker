@@ -4,15 +4,6 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 'Run mode'
-        required: false
-        default: 'once'
-        type: choice
-        options:
-          - once
-          - test
 
 jobs:
   track:
@@ -41,4 +32,6 @@ jobs:
 
       - name: Run tracker
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python plane_tracker.py --once
+
