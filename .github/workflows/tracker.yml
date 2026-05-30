@@ -34,5 +34,5 @@ jobs:
       - name: Run tracker
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python plane_tracker.py --once
+        run: python plane_tracker.py --test
 
