@@ -1,0 +1,44 @@
+name: Plane Tracker
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: false
+        default: 'once'
+        type: choice
+        options:
+          - once
+          - test
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Restore tracker state
+        uses: actions/cache@v4
+        with:
+          path: tracker_state.json
+          key: tracker-state-${{ github.run_id }}
+          restore-keys: |
+            tracker-state-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run tracker
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC
