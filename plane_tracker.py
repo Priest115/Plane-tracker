@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+import sys
+import time
+from datetime import date, datetime
+from pathlib import Path
+
+import requests
+
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "plane_tracker_1998_2026_05_30")
+
+POLL_INTERVAL = 120
+
+WARWICKSHIRE_BOUNDS = {
+    "lat_min": 51.9,
+    "lat_max": 52.8,
+    "lon_min": -2.1,
+    "lon_max": -1.1,
+}
+
+UK_BOUNDS = {
+    "lat_min": 49.5,
+    "lat_max": 61.0,
+    "lon_min": -8.5,
+    "lon_max":  2.5,
+}
+
+WARBIRD_WATCHLIST = [
+    {"reg": "G-BEDF", "name": "Sally B",  "desc": "B-17 Flying Fortress"},
+    {"reg": "G-ASJV", "name": "MH434",    "desc": "Spitfire LF IXb"},
+    {"reg": "G-MRLL", "name": "Marinell", "desc": "P-51D Mustang"},
+    {"reg": "SP-MIL", "name": "SP-MIL",   "desc": "MiG-17 Lim-5"},
+]
+
+GLOBALLY_RARE_TYPES = {
+    "B2", "U2", "WC135", "B52", "B1", "RC135", "E3", "RQ4", "WP3",
+}
+
+DAILY_NOTIFY_TYPES = {
+    "F35", "F22", "F15", "F16", "A10", "C17", "P8", "E7", "AH64", "F18",
+}
+
+SKIP_TYPES = {
+    "EF", "C130", "A400", "CH47", "MRTT", "H135", "AS365",
+}
+
+MIN_ALT_FT = 500
+ADSB_BASE  = "https://api.adsb.fi/v1"
+STATE_FILE = Path(__file__).parent / "tracker_state.json"
+HEADERS    = {"User-Agent": "uk-plane-tracker/1.0 (personal project)"}
+
+
+def load_state():
+    if STATE_FILE.exists():
+        try:
+            with open(STATE_FILE) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"date": "", "airborne": {}, "seen_warks": {}, "seen_uk": {}, "seen_global": {}}
+
+
+def save_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def maybe_reset_daily(state):
+    today = str(date.today())
+    if state.get("date") != today:
+        state.update({"date": today, "seen_warks": {}, "seen_uk": {}, "seen_global": {}})
+    for key in ("airborne", "seen_warks", "seen_uk", "seen_global"):
+        state.setdefault(key, {})
+    return state
+
+
+def adsb_get(path):
+    try:
+        r = requests.get(f"{ADSB_BASE}/{path}", headers=HEADERS, timeout=15)
+        if r.status_code == 404:
+            return []
+        r.raise_for_status()
+        return r.json().get("ac", [])
+    except requests.RequestException as e:
+        log(f"API error ({path}): {e}")
+        return []
+
+
+def fetch_all_military():
+    return adsb_get("mil")
+
+
+def fetch_by_reg(reg):
+    results = adsb_get(f"reg/{reg.upper()}")
+    return results[0] if results else None
+
+
+def fetch_by_hex(hex_code):
+    results = adsb_get(f"icao/{hex_code.lower()}")
+    return results[0] if results else None
+
+
+def in_bounds(ac, bounds):
+    lat, lon = ac.get("lat"), ac.get("lon")
+    if lat is None or lon is None:
+        return False
+    return (bounds["lat_min"] <= lat <= bounds["lat_max"] and
+            bounds["lon_min"] <= lon <= bounds["lon_max"])
+
+
+def is_airborne(ac):
+    alt = ac.get("alt_baro", 0)
+    gs  = ac.get("gs", 0) or 0
+    if alt == "ground":
+        return False
+    try:
+        return int(alt) >= MIN_ALT_FT
+    except (TypeError, ValueError):
+        return float(gs) > 30
+
+
+def get_type(ac):
+    return (ac.get("t") or ac.get("type") or "").upper().replace("-", "").replace(" ", "")
+
+
+def is_globally_rare(ac):
+    t = get_type(ac)
+    return any(r in t for r in GLOBALLY_RARE_TYPES)
+
+
+def is_daily_notify(ac):
+    t = get_type(ac)
+    return any(d in t for d in DAILY_NOTIFY_TYPES)
+
+
+def is_skipped_uk(ac):
+    t = get_type(ac)
+    return any(s in t for s in SKIP_TYPES)
+
+
+def map_url(ac):
+    icao = (ac.get("hex") or "").strip()
+    if icao:
+        return f"https://globe.adsbexchange.com/?icao={icao.lower()}"
+    lat, lon = ac.get("lat"), ac.get("lon")
+    if lat is not None and lon is not None:
+        return f"https://globe.adsbexchange.com/?lat={lat:.3f}&lon={lon:.3f}&zoom=10"
+    return None
+
+
+def format_message(ac, note=""):
+    lines = [note] if note else []
+    reg      = (ac.get("r")      or "").strip()
+    callsign = (ac.get("flight") or "").strip()
+    ac_type  = (ac.get("t")      or ac.get("type") or "").strip()
+    alt      = ac.get("alt_baro")
+    gs       = ac.get("gs")
+    track    = ac.get("track")
+    squawk   = ac.get("squawk", "")
+    if reg:      lines.append(f"Reg: {reg}")
+    if callsign: lines.append(f"Callsign: {callsign}")
+    if ac_type:  lines.append(f"Type: {ac_type}")
+    if squawk:   lines.append(f"Squawk: {squawk}")
+    if alt == "ground":
+        lines.append("On ground")
+    elif alt is not None:
+        try:    lines.append(f"Alt: {int(alt):,} ft")
+        except: pass
+    if gs is not None:
+        try:    lines.append(f"Speed: {int(gs)} kts")
+        except: pass
+    if track is not None:
+        try:    lines.append(f"Heading: {int(track)} deg")
+        except: pass
+    return "\n".join(lines)
+
+
+def log(msg):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+
+
+def ntfy(title, message, priority=3, tags="", url=None):
+    headers = {"Title": title, "Priority": str(priority)}
+    if tags:
+        headers["Tags"] = tags
+    if url:
+        headers["Click"] = url
+    try:
+        r = requests.post(
+            f"https://ntfy.sh/{NTFY_TOPIC}",
+            data=message.encode("utf-8"),
+            headers=headers,
+            timeout=10,
+        )
+        r.raise_for_status()
+        log(f"  -> ntfy sent: {title}")
+    except requests.RequestException as e:
+        log(f"  -> ntfy FAILED: {e}")
+
+
+def check_warbids(state):
+    for bird in WARBIRD_WATCHLIST:
+        reg  = bird.get("reg")
+        hex_ = bird.get("hex")
+        name = bird["name"]
+        key  = (reg or hex_).upper()
+        ac = fetch_by_reg(reg) if reg else fetch_by_hex(hex_)
+        time.sleep(0.75)
+        if ac is None or not is_airborne(ac):
+            if key in state["airborne"]:
+                log(f"  {name} landed")
+                del state["airborne"][key]
+            continue
+        if key not in state["airborne"]:
+            state["airborne"][key] = True
+            log(f"  {name} airborne - notifying")
+            ntfy(
+                title=f"{name} is flying!",
+                message=format_message(ac, note=bird["desc"]),
+                priority=3,
+                tags="airplane",
+                url=map_url(ac),
+            )
+        else:
+            log(f"  {name} airborne (already notified)")
+    return state
+
+
+def check_military(state):
+    all_mil = fetch_all_military()
+    airborne = [a for a in all_mil if is_airborne(a)]
+    warbird_keys = {(b.get("reg") or b.get("hex", "")).upper() for b in WARBIRD_WATCHLIST}
+    log(f"Military globally: {len(all_mil)}")
+
+    for ac in airborne:
+        if not is_globally_rare(ac):
+            continue
+        icao    = (ac.get("hex") or "").lower()
+        ac_type = (ac.get("t") or ac.get("type") or "Unknown").strip()
+        if icao and icao not in state["seen_global"]:
+            state["seen_global"][icao] = True
+            log(f"  GLOBAL RARE: {ac_type}")
+            ntfy(
+                title=f"{ac_type} tracked globally",
+                message=format_message(ac),
+                priority=5,
+                tags="globe_with_meridians,rotating_light",
+                url=map_url(ac),
+            )
+
+    warks = [a for a in airborne if in_bounds(a, WARWICKSHIRE_BOUNDS)]
+    log(f"Military over Warwickshire: {len(warks)}")
+    for ac in warks:
+        icao    = (ac.get("hex") or "").lower()
+        ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
+        if icao and icao not in state["seen_warks"]:
+            state["seen_warks"][icao] = True
+            log(f"  WARWICKSHIRE: {ac_type}")
+            ntfy(
+                title=f"Military overhead - {ac_type}",
+                message=format_message(ac, note="In Warwickshire airspace"),
+                priority=4,
+                tags="dart",
+                url=map_url(ac),
+            )
+
+    uk = [a for a in airborne if in_bounds(a, UK_BOUNDS)]
+    log(f"Military in UK: {len(uk)}")
+    for ac in uk:
+        icao    = (ac.get("hex") or "").lower()
+        ac_type = (ac.get("t") or ac.get("type") or "Unknown military").strip()
+        if not icao or is_globally_rare(ac) or is_skipped_uk(ac):
+            continue
+        if is_daily_notify(ac) and icao not in state["seen_uk"]:
+            state["seen_uk"][icao] = True
+            log(f"  UK: {ac_type}")
+            ntfy(
+                title=f"Military UK: {ac_type}",
+                message=format_message(ac),
+                priority=3,
+                tags="shield",
+                url=map_url(ac),
+            )
+
+    current = {(a.get("hex") or "").lower() for a in all_mil}
+    for k in [k for k in list(state["airborne"]) if k not in current and k not in warbird_keys]:
+        del state["airborne"][k]
+    return state
+
+
+def run_once():
+    log("-- Poll --")
+    state = maybe_reset_daily(load_state())
+    state = check_warbids(state)
+    state = check_military(state)
+    save_state(state)
+    log("-- Done --")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--once", action="store_true")
+    parser.add_argument("--test", action="store_true")
+    args = parser.parse_args()
+
+    if args.test:
+        log("Sending test notification...")
+        ntfy(
+            title="Plane Tracker - test",
+            message="Notifications working.",
+            priority=3,
+            tags="white_check_mark",
+        )
+        return
+
+    if args.once:
+        run_once()
+        return
+
+    log("Running continuously. Ctrl+C to stop.")
+    while True:
+        try:
+            run_once()
+        except KeyboardInterrupt:
+            log("Stopped.")
+            break
+        except Exception as e:
+            log(f"Error: {e}")
+        log(f"Sleeping {POLL_INTERVAL}s...")
+        time.sleep(POLL_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()
