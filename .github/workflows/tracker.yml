@@ -4,6 +4,7 @@ name: Plane Tracker
 on:
   schedule:
     - cron: '*/5 * * * *'
+
   workflow_dispatch:
 
 jobs:
