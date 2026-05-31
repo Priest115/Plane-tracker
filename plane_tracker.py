@@ -35,7 +35,8 @@ WARBIRD_WATCHLIST = [
     {"reg": "G-SOAF", "name": "G-SOAF", "desc": "BAC Strikemaster - ex Sultan of Oman's Air Force"},
     {"reg": "G-RSAF", "name": "G-RSAF", "desc": "BAC Strikemaster - ex Royal Saudi Air Force"},
     {"reg": "G-PBIX", "name": "G-PBIX", "desc": "Porky II"},
-
+    {"reg": "AB910", "name": "AB910", "desc": "Spitfire Mk Vb - operational at Dieppe & on D-Day"},
+    {"reg": "G-BMSB", "name": "G-BMSB", "desc": "Spitfire ITX"},
 
 
     {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang - Hangar 11, North Weald"},
