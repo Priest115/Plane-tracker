@@ -39,6 +39,7 @@ WARBIRD_WATCHLIST = [
 
 
     {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang - Hangar 11, North Weald"},
+    {"reg": "G-JERK", "name": "Jersey Jerk", "desc": "P-51D Mustang - Restored Commonwealth Aircraft Corporation CA-18 Mustang Mk.21"},
 
     {"reg": "C-GVRA", "name": "Mynarski Lancaster", "desc": "Avro Lancaster FM213 - Canadian Warplane Heritage"},
 
