@@ -27,12 +27,49 @@ UK_BOUNDS = {
     "lon_min": -8.5,
     "lon_max":  2.5,
 }
-
 WARBIRD_WATCHLIST = [
-    {"reg": "G-BEDF", "name": "Sally B",  "desc": "B-17 Flying Fortress"},
-    {"reg": "G-ASJV", "name": "MH434",    "desc": "Spitfire LF IXb"},
-    {"reg": "G-MRLL", "name": "Marinell", "desc": "P-51D Mustang"},
-    {"reg": "SP-MIL", "name": "SP-MIL",   "desc": "MiG-17 Lim-5"},
+
+    # ── Already tracked ──────────────────────────────────────────────────────
+    {"reg": "G-BEDF", "name": "Sally B",        "desc": "B-17G Flying Fortress — only airworthy in Europe, Duxford"},
+    {"reg": "G-ASJV", "name": "MH434",          "desc": "Spitfire LF IXb — OFMC Duxford, 222 Sqn veteran"},
+    {"reg": "G-MRLL", "name": "Marinell",        "desc": "P-51D Mustang (44-13521) — 339th FG, shot down France 1944"},
+    {"reg": "SP-MIL", "name": "SP-MIL",          "desc": "MiG-17 Lim-5 — only airworthy in Europe"},
+
+    # ── UK Spitfires ─────────────────────────────────────────────────────────
+    {"reg": "G-AWII", "name": "AR501",           "desc": "Spitfire LF Vc — Shuttleworth Collection, Old Warden"},
+    {"reg": "G-LFIX", "name": "ML407",           "desc": "Spitfire TR IX — The Grace Spitfire, Spitfires.com"},
+    {"reg": "G-CICK", "name": "NH341",           "desc": "Spitfire TR IX Elizabeth — Aero Legends"},
+
+    # ── UK P-51 ──────────────────────────────────────────────────────────────
+    {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang — Hangar 11 Collection, North Weald"},
+
+    # ── BBMF — RAF serials, no civil reg ─────────────────────────────────────
+    # Find hex codes at globe.adsbexchange.com on any BBMF display day
+    # BBMF calendar: https://www.raf.mod.uk/bbmf/airshow-calendar/
+    # {"hex": "??????", "name": "BBMF Lancaster",  "desc": "Avro Lancaster PA474 — one of two airworthy worldwide"},
+    # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane LF363 — last Hurricane delivered to RAF"},
+    # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane PZ865 — The Last of the Many"},
+    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire IIa P7350 — Battle of Britain veteran"},
+    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire Vb AB910"},
+    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire PR XIX PS915"},
+    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire PR XIX PM631"},
+
+    # ── Canada ───────────────────────────────────────────────────────────────
+    {"reg": "C-GVRA", "name": "Mynarski Lancaster", "desc": "Avro Lancaster FM213 — Canadian Warplane Heritage Museum"},
+
+    # ── USA — B-29 (only two airworthy in the world) ─────────────────────────
+    {"reg": "N529B",  "name": "FIFI",            "desc": "B-29 Superfortress — CAF Dallas, tours USA annually"},
+    {"reg": "N69972", "name": "Doc",             "desc": "B-29 Superfortress — Wichita, one of two airworthy"},
+
+    # ── USA — B-17 ───────────────────────────────────────────────────────────
+    {"reg": "N9323Z", "name": "Sentimental Journey", "desc": "B-17G — CAF Arizona Wing, Mesa"},
+    {"reg": "N5017N", "name": "Aluminum Overcast",   "desc": "B-17G — EAA, Oshkosh, tours USA"},
+
+    # ── USA — B-24 ───────────────────────────────────────────────────────────
+    {"reg": "N224J",  "name": "Witchcraft",      "desc": "B-24J Liberator — Collings Foundation"},
+
+    # ── USA — Fighters ───────────────────────────────────────────────────────
+    # Many P-51s fly in the US — add specific ones as you spot them at airshows
 ]
 
 GLOBALLY_RARE_TYPES = {
