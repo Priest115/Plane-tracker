@@ -34,6 +34,8 @@ WARBIRD_WATCHLIST = [
     {"reg": "G-AIDN", "name": "G-AIDN", "desc": "Spitfire"},
     {"reg": "G-SOAF", "name": "G-SOAF", "desc": "BAC Strikemaster - ex Sultan of Oman's Air Force"},
     {"reg": "G-RSAF", "name": "G-RSAF", "desc": "BAC Strikemaster - ex Royal Saudi Air Force"},
+    {"reg": "G-PBIX", "name": "G-PBIX", "desc": "Porky II"},
+
 
 
     {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang - Hangar 11, North Weald"},
