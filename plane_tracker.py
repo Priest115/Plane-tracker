@@ -11,81 +11,58 @@ from pathlib import Path
 import requests
 
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "plane_tracker_1998_2026_05_30")
-
 POLL_INTERVAL = 120
 
 WARWICKSHIRE_BOUNDS = {
-    "lat_min": 51.9,
-    "lat_max": 52.8,
-    "lon_min": -2.1,
-    "lon_max": -1.1,
+    "lat_min": 51.9, "lat_max": 52.8,
+    "lon_min": -2.1, "lon_max": -1.1,
 }
-
 UK_BOUNDS = {
-    "lat_min": 49.5,
-    "lat_max": 61.0,
-    "lon_min": -8.5,
-    "lon_max":  2.5,
+    "lat_min": 49.5, "lat_max": 61.0,
+    "lon_min": -8.5, "lon_max":  2.5,
 }
+
 WARBIRD_WATCHLIST = [
+    {"reg": "G-BEDF", "name": "Sally B",        "desc": "B-17G Flying Fortress - only airworthy in Europe"},
+    {"reg": "G-ASJV", "name": "MH434",          "desc": "Spitfire LF IXb - OFMC Duxford"},
+    {"reg": "G-MRLL", "name": "Marinell",        "desc": "P-51D Mustang (44-13521)"},
+    {"reg": "SP-MIL", "name": "SP-MIL",          "desc": "MiG-17 Lim-5 - only airworthy in Europe"},
 
-    # ── Already tracked ──────────────────────────────────────────────────────
-    {"reg": "G-BEDF", "name": "Sally B",        "desc": "B-17G Flying Fortress — only airworthy in Europe, Duxford"},
-    {"reg": "G-ASJV", "name": "MH434",          "desc": "Spitfire LF IXb — OFMC Duxford, 222 Sqn veteran"},
-    {"reg": "G-MRLL", "name": "Marinell",        "desc": "P-51D Mustang (44-13521) — 339th FG, shot down France 1944"},
-    {"reg": "SP-MIL", "name": "SP-MIL",          "desc": "MiG-17 Lim-5 — only airworthy in Europe"},
+    {"reg": "G-AWII", "name": "AR501",           "desc": "Spitfire LF Vc - Shuttleworth Collection"},
+    {"reg": "G-LFIX", "name": "ML407",           "desc": "Spitfire TR IX - The Grace Spitfire"},
+    {"reg": "G-CICK", "name": "NH341",           "desc": "Spitfire TR IX Elizabeth - Aero Legends"},
 
-    # ── UK Spitfires ─────────────────────────────────────────────────────────
-    {"reg": "G-AWII", "name": "AR501",           "desc": "Spitfire LF Vc — Shuttleworth Collection, Old Warden"},
-    {"reg": "G-LFIX", "name": "ML407",           "desc": "Spitfire TR IX — The Grace Spitfire, Spitfires.com"},
-    {"reg": "G-CICK", "name": "NH341",           "desc": "Spitfire TR IX Elizabeth — Aero Legends"},
+    {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang - Hangar 11, North Weald"},
 
-    # ── UK P-51 ──────────────────────────────────────────────────────────────
-    {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang — Hangar 11 Collection, North Weald"},
+    {"reg": "C-GVRA", "name": "Mynarski Lancaster", "desc": "Avro Lancaster FM213 - Canadian Warplane Heritage"},
 
-    # ── BBMF — RAF serials, no civil reg ─────────────────────────────────────
-    # Find hex codes at globe.adsbexchange.com on any BBMF display day
-    # BBMF calendar: https://www.raf.mod.uk/bbmf/airshow-calendar/
-    # {"hex": "??????", "name": "BBMF Lancaster",  "desc": "Avro Lancaster PA474 — one of two airworthy worldwide"},
-    # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane LF363 — last Hurricane delivered to RAF"},
-    # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane PZ865 — The Last of the Many"},
-    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire IIa P7350 — Battle of Britain veteran"},
-    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire Vb AB910"},
+    {"reg": "N529B",  "name": "FIFI",            "desc": "B-29 Superfortress - CAF Dallas"},
+    {"reg": "N69972", "name": "Doc",             "desc": "B-29 Superfortress - Wichita"},
+    {"reg": "N9323Z", "name": "Sentimental Journey", "desc": "B-17G - CAF Arizona Wing"},
+    {"reg": "N5017N", "name": "Aluminum Overcast",   "desc": "B-17G - EAA Oshkosh"},
+    {"reg": "N224J",  "name": "Witchcraft",      "desc": "B-24J Liberator - Collings Foundation"},
+
+    # BBMF - RAF serials, no civil reg. Find hex codes at globe.adsbexchange.com
+    # {"hex": "??????", "name": "BBMF Lancaster",  "desc": "Avro Lancaster PA474"},
+    # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane LF363"},
+    # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane PZ865"},
+    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire IIa P7350"},
     # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire PR XIX PS915"},
-    # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire PR XIX PM631"},
-
-    # ── Canada ───────────────────────────────────────────────────────────────
-    {"reg": "C-GVRA", "name": "Mynarski Lancaster", "desc": "Avro Lancaster FM213 — Canadian Warplane Heritage Museum"},
-
-    # ── USA — B-29 (only two airworthy in the world) ─────────────────────────
-    {"reg": "N529B",  "name": "FIFI",            "desc": "B-29 Superfortress — CAF Dallas, tours USA annually"},
-    {"reg": "N69972", "name": "Doc",             "desc": "B-29 Superfortress — Wichita, one of two airworthy"},
-
-    # ── USA — B-17 ───────────────────────────────────────────────────────────
-    {"reg": "N9323Z", "name": "Sentimental Journey", "desc": "B-17G — CAF Arizona Wing, Mesa"},
-    {"reg": "N5017N", "name": "Aluminum Overcast",   "desc": "B-17G — EAA, Oshkosh, tours USA"},
-
-    # ── USA — B-24 ───────────────────────────────────────────────────────────
-    {"reg": "N224J",  "name": "Witchcraft",      "desc": "B-24J Liberator — Collings Foundation"},
-
-    # ── USA — Fighters ───────────────────────────────────────────────────────
-    # Many P-51s fly in the US — add specific ones as you spot them at airshows
 ]
 
-GLOBALLY_RARE_TYPES = {
-    "B2", "U2", "WC135", "B52", "B1", "RC135", "E3", "RQ4", "WP3",
-}
-
-DAILY_NOTIFY_TYPES = {
-    "F35", "F22", "F15", "F16", "A10", "C17", "P8", "E7", "AH64", "F18",
-}
-
-SKIP_TYPES = {
-    "EF", "C130", "A400", "CH47", "MRTT", "H135", "AS365",
-}
+GLOBALLY_RARE_TYPES = {"B2","U2","WC135","B52","B1","RC135","E3","RQ4","WP3"}
+DAILY_NOTIFY_TYPES  = {"F35","F22","F15","F16","A10","C17","P8","E7","AH64","F18"}
+SKIP_TYPES          = {"EF","C130","A400","CH47","MRTT","H135","AS365"}
 
 MIN_ALT_FT = 500
-ADSB_BASE  = "https://api.adsb.fi/v1"
+
+MIL_BASE = "https://api.adsb.fi/v1"
+WARBIRD_SOURCES = [
+    "https://api.adsb.fi/v1",
+    "https://api.adsb.lol/v2",
+    "https://api.adsb.one/v2",
+]
+
 STATE_FILE = Path(__file__).parent / "tracker_state.json"
 HEADERS    = {"User-Agent": "uk-plane-tracker/1.0 (personal project)"}
 
@@ -97,7 +74,11 @@ def load_state():
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             pass
-    return {"date": "", "airborne": {}, "seen_warks": {}, "seen_uk": {}, "seen_global": {}, "heartbeat_date": ""}
+    return {
+        "date": "", "airborne": {},
+        "seen_warks": {}, "seen_uk": {}, "seen_global": {},
+        "heartbeat_date": "", "daily_log": [],
+    }
 
 
 def save_state(state):
@@ -108,37 +89,54 @@ def save_state(state):
 def maybe_reset_daily(state):
     today = str(date.today())
     if state.get("date") != today:
-        state.update({"date": today, "seen_warks": {}, "seen_uk": {}, "seen_global": {}})
-    for key in ("airborne", "seen_warks", "seen_uk", "seen_global", "heartbeat_date"):
+        state.update({
+            "date": today,
+            "seen_warks": {}, "seen_uk": {}, "seen_global": {},
+            "daily_log": [],
+        })
+    for key in ("airborne", "seen_warks", "seen_uk", "seen_global"):
         state.setdefault(key, {})
+    state.setdefault("daily_log", [])
     state.setdefault("heartbeat_date", "")
     return state
 
 
-def adsb_get(path):
+def fetch_all_military():
     try:
-        r = requests.get(f"{ADSB_BASE}/{path}", headers=HEADERS, timeout=15)
+        r = requests.get(f"{MIL_BASE}/mil", headers=HEADERS, timeout=15)
         if r.status_code == 404:
             return []
         r.raise_for_status()
         return r.json().get("ac", [])
     except requests.RequestException as e:
-        log(f"API error ({path}): {e}")
+        log(f"Military fetch error: {e}")
         return []
 
 
-def fetch_all_military():
-    return adsb_get("mil")
-
-
 def fetch_by_reg(reg):
-    results = adsb_get(f"reg/{reg.upper()}")
-    return results[0] if results else None
+    for base in WARBIRD_SOURCES:
+        try:
+            r = requests.get(f"{base}/reg/{reg.upper()}", headers=HEADERS, timeout=10)
+            if r.status_code == 200:
+                results = r.json().get("ac", [])
+                if results:
+                    return results[0]
+        except requests.RequestException:
+            continue
+    return None
 
 
 def fetch_by_hex(hex_code):
-    results = adsb_get(f"icao/{hex_code.lower()}")
-    return results[0] if results else None
+    for base in WARBIRD_SOURCES:
+        try:
+            r = requests.get(f"{base}/icao/{hex_code.lower()}", headers=HEADERS, timeout=10)
+            if r.status_code == 200:
+                results = r.json().get("ac", [])
+                if results:
+                    return results[0]
+        except requests.RequestException:
+            continue
+    return None
 
 
 def in_bounds(ac, bounds):
@@ -216,6 +214,25 @@ def format_message(ac, note=""):
     return "\n".join(lines)
 
 
+def log_sighting(state, zone, ac=None, name=""):
+    entry = {
+        "time": datetime.now().strftime("%H:%M"),
+        "zone": zone,
+        "name": name,
+    }
+    if ac:
+        alt = ac.get("alt_baro")
+        if alt and alt != "ground":
+            try: alt = int(alt)
+            except: alt = None
+        else:
+            alt = None
+        entry["type"]     = (ac.get("t") or ac.get("type") or "").strip()
+        entry["callsign"] = (ac.get("flight") or "").strip()
+        entry["alt"]      = alt
+    state.setdefault("daily_log", []).append(entry)
+
+
 def log(msg):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
@@ -246,7 +263,7 @@ def check_heartbeat(state):
         log("  Sending daily heartbeat")
         ntfy(
             title="Plane Tracker - running",
-            message=f"Still active. Polling every 5 minutes.\n{today}",
+            message=f"Still active. Polling regularly.\n{today}",
             priority=2,
             tags="white_check_mark",
         )
@@ -260,15 +277,17 @@ def check_warbids(state):
         name = bird["name"]
         key  = (reg or hex_).upper()
         ac = fetch_by_reg(reg) if reg else fetch_by_hex(hex_)
-        time.sleep(0.75)
+        time.sleep(0.4)
         if ac is None or not is_airborne(ac):
             if key in state["airborne"]:
                 log(f"  {name} landed")
+                log_sighting(state, "warbird_down", name=name)
                 del state["airborne"][key]
             continue
         if key not in state["airborne"]:
             state["airborne"][key] = True
             log(f"  {name} airborne - notifying")
+            log_sighting(state, "warbird_up", ac=ac, name=name)
             ntfy(
                 title=f"{name} is flying!",
                 message=format_message(ac, note=bird["desc"]),
@@ -295,6 +314,7 @@ def check_military(state):
         if icao and icao not in state["seen_global"]:
             state["seen_global"][icao] = True
             log(f"  GLOBAL RARE: {ac_type}")
+            log_sighting(state, "rare", ac=ac)
             ntfy(
                 title=f"{ac_type} tracked globally",
                 message=format_message(ac),
@@ -311,6 +331,7 @@ def check_military(state):
         if icao and icao not in state["seen_warks"]:
             state["seen_warks"][icao] = True
             log(f"  WARWICKSHIRE: {ac_type}")
+            log_sighting(state, "warks", ac=ac)
             ntfy(
                 title=f"Military overhead - {ac_type}",
                 message=format_message(ac, note="In Warwickshire airspace"),
@@ -329,6 +350,7 @@ def check_military(state):
         if is_daily_notify(ac) and icao not in state["seen_uk"]:
             state["seen_uk"][icao] = True
             log(f"  UK: {ac_type}")
+            log_sighting(state, "uk", ac=ac)
             ntfy(
                 title=f"Military UK: {ac_type}",
                 message=format_message(ac),
