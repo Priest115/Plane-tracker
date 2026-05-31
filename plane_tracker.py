@@ -48,12 +48,37 @@ WARBIRD_WATCHLIST = [
     {"reg": "N5017N", "name": "Aluminum Overcast",   "desc": "B-17G - EAA Oshkosh"},
     {"reg": "N224J",  "name": "Witchcraft",      "desc": "B-24J Liberator - Collings Foundation"},
 
+  # --- Rare types added: rarest survivors, roughly <10 flying worldwide ---
+    # All reg-based, so they get tracked globally (like FIFI/Doc above), not just over the UK.
+    # Most of these live in the US; only the Blenheim, G-BMSB and BBMF AB910 are UK-based.
+ 
+    {"reg": "G-BPIV", "name": "Blenheim L6739",  "desc": "Bristol Blenheim Mk.IF - ONLY airworthy in the world, ARC Duxford"},
+    {"reg": "N24927", "name": "Diamond Lil",     "desc": "B-24A Liberator (AM927) - only regularly-flying B-24, CAF Dallas"},
+ 
+    {"reg": "N114KA", "name": "Mosquito KA114",  "desc": "DH Mosquito FB.26 - Military Aviation Museum, Virginia Beach VA"},
+    {"reg": "N959TV", "name": "Mosquito TV959",  "desc": "DH Mosquito T.III (flown as NS838) - Flying Heritage, Everett WA"},
+    {"reg": "N474PZ", "name": "Mosquito PZ474",  "desc": "DH Mosquito FB.VI - Charles Somers collection, Sacramento CA"},
+    # {"reg": "??????", "name": "Mosquito NZ2308", "desc": "DH Mosquito T.43 - Lewis Air Legends TX (CONFIRM REG)"},
+    # {"reg": "C-?????", "name": "Mosquito VR796", "desc": "DH Mosquito B.35 - Bob Jens, Canada (not flown for years)"},
+ 
+    {"reg": "N17630", "name": "Glacier Girl",    "desc": "P-38F Lightning (41-7630) - Air Legends Foundation, San Antonio TX"},
+    {"reg": "N25Y",   "name": "Flying Bulls P-38", "desc": "P-38L Lightning - ONLY P-38 in Europe, Flying Bulls, Salzburg AT"},
+    {"reg": "N505MH", "name": "Collings P-38",   "desc": "P-38L Lightning (44-53186) - Collings Foundation, Stow MA"},
+    {"reg": "N577JB", "name": "War Eagles P-38", "desc": "P-38 Lightning (44-27053) - War Eagles Air Museum, Santa Teresa NM"},
+    # {"reg": "??????", "name": "Jandina III",    "desc": "P-38J Lightning (42-103988) - Flying Heritage, Everett WA (CONFIRM REG)"},
+ 
+    {"reg": "N712Z",  "name": "CAF Zero",        "desc": "Mitsubishi A6M3 Zero - CAF SoCal Wing, Camarillo CA (P&W engine)"},
+    # {"reg": "??????", "name": "Planes of Fame Zero", "desc": "A6M5 w/ original Sakae engine - Chino CA (CONFIRM REG)"},
+ 
+    {"reg": "G-BMSB", "name": "MJ627",           "desc": "Spitfire T.9 two-seat (ex-Irish AC) - Biggin Hill; damaged in May-2025 forced landing"},
+ 
     # BBMF - RAF serials, no civil reg. Find hex codes at globe.adsbexchange.com
     # {"hex": "??????", "name": "BBMF Lancaster",  "desc": "Avro Lancaster PA474"},
     # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane LF363"},
     # {"hex": "??????", "name": "BBMF Hurricane",  "desc": "Hurricane PZ865"},
     # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire IIa P7350"},
     # {"hex": "??????", "name": "BBMF Spitfire",   "desc": "Spitfire PR XIX PS915"},
+    # {"hex": "??????", "name": "BBMF Spitfire Vb", "desc": "Spitfire Vb AB910 - Dieppe & D-Day veteran; back flying Jan 2026"},
 ]
 
 GLOBALLY_RARE_TYPES = {"B2","U2","WC135","B52","B1","RC135","E3","RQ4","WP3"}
