@@ -133,7 +133,7 @@ def main():
     print(f"Sightings in log: {len(log)}")
     msg = build_digest(log, today)
     print(msg)
-    send_ntfy(f"Daily Briefing — {today}", msg)
+    send_ntfy(f"Daily Briefing - {today}", msg)
  
  
 if __name__ == "__main__":
