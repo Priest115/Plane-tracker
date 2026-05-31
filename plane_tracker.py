@@ -31,6 +31,9 @@ WARBIRD_WATCHLIST = [
     {"reg": "G-AWII", "name": "AR501",           "desc": "Spitfire LF Vc - Shuttleworth Collection"},
     {"reg": "G-LFIX", "name": "ML407",           "desc": "Spitfire TR IX - The Grace Spitfire"},
     {"reg": "G-CICK", "name": "NH341",           "desc": "Spitfire TR IX Elizabeth - Aero Legends"},
+    {"reg": "G-AIDN", "name": "G-AIDN", "desc": "Spitfire"},
+    {"reg": "G-SOAF", "name": "G-SOAF", "desc": "BAC Strikemaster - ex Sultan of Oman's Air Force"},
+
 
     {"reg": "G-SIJJ", "name": "Tall in the Saddle", "desc": "P-51D Mustang - Hangar 11, North Weald"},
 
