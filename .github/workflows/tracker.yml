@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tracker_state.json
-          key: tracker-state-${{ github.run_id }}
+          key: tracker-state-${{ hashFiles('plane_tracker.py') }}
           restore-keys: |
             tracker-state-
 
