@@ -95,7 +95,12 @@ SKIP_TYPES          = {"EF","C130","A400","CH47","H135","AS365"}
 MIN_ALT_FT    = 500
 MAX_POSITIONS = 100
 
-MIL_BASE = "https://api.adsb.fi/v1"
+MIL_SOURCES = [
+    "https://api.adsb.fi/v2/mil",
+    "https://api.adsb.lol/v2/mil",
+    "https://api.adsb.one/v2/mil",
+]
+
 WARBIRD_SOURCES = [
     "https://api.adsb.fi/v1",
     "https://api.adsb.lol/v2",
@@ -146,16 +151,21 @@ def maybe_reset_daily(state):
 # -- API ----------------------------------------------------------------------
 
 def fetch_all_military():
-    try:
-        r = requests.get(f"{MIL_BASE}/mil", headers=HEADERS, timeout=15)
-        if r.status_code == 404:
-            return []
-        r.raise_for_status()
-        return r.json().get("ac", [])
-    except requests.RequestException as e:
-        log(f"Military fetch error: {e}")
-        return []
-
+    for url in MIL_SOURCES:
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            if r.status_code == 404:
+                log(f"Military source 404: {url}")
+                continue
+            r.raise_for_status()
+            aircraft = r.json().get("ac", [])
+            if aircraft:
+                return aircraft
+        except requests.RequestException as e:
+            log(f"Military fetch error ({url}): {e}")
+            continue
+    log("All military sources returned empty or failed")
+    return []
 
 def fetch_by_reg(reg):
     for base in WARBIRD_SOURCES:
