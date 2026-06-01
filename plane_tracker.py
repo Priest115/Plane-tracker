@@ -12,10 +12,13 @@ import requests
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "plane_tracker_1998_2026_05_30")
 POLL_INTERVAL = 120
 
-WARWICKSHIRE_BOUNDS = {
-    "lat_min": 51.9, "lat_max": 52.8,
-    "lon_min": -2.1, "lon_max": -1.1,
+LOCAL_ZONE_BOUNDS = {
+    "lat_min": 51.65,
+    "lat_max": 53.05,
+    "lon_min": -3.15,
+    "lon_max": -0.35,
 }
+
 UK_BOUNDS = {
     "lat_min": 49.5, "lat_max": 61.0,
     "lon_min": -8.5, "lon_max":  2.5,
