@@ -37,6 +37,8 @@ WARBIRD_WATCHLIST = [
     {"reg": "G-PBIX", "name": "Porky II",            "desc": "Spitfire - The Suffolk Spitfire"},
     {"reg": "G-BMSB", "name": "MJ627",               "desc": "Spitfire T.9 two-seat (ex-Irish AC) - Biggin Hill"},
     {"reg": "AB910",  "name": "AB910",               "desc": "Spitfire Vb - BBMF, Dieppe and D-Day veteran"},
+    {"reg": "G-AWBG",  "name": "G-AWBG",               "desc": "Spitfire IXe - built 1945"},
+    
 
     # -- UK Strikemaster -------------------------------------------------------
     {"reg": "G-SOAF", "name": "G-SOAF",              "desc": "BAC Strikemaster - ex Sultan of Oman's Air Force"},
