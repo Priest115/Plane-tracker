@@ -437,19 +437,19 @@ def check_military(state):
             )
 
     # Pass 2: Warwickshire — ANY military type, no filter
-    warks = [a for a in airborne if in_bounds(a, WARWICKSHIRE_BOUNDS)]
-    log(f"Military over Warwickshire: {len(warks)}")
+    warks = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
+    log(f"Military Locally: {len(local)}")
     for ac in warks:
         icao    = (ac.get("hex") or "").lower()
         ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
-        if icao and icao not in state["seen_warks"]:
-            state["seen_warks"][icao] = True
-            log(f"  WARWICKSHIRE: {ac_type}")
-            log_sighting(state, "warks", ac=ac)
+        if icao and icao not in state["seen_locally"]:
+            state["seen_locally"][icao] = True
+            log(f"  LOCAL: {ac_type}")
+            log_sighting(state, "locally", ac=ac)
             location = get_location(ac)
             ntfy(
                 title=f"Military overhead - {ac_type}",
-                message=format_message(ac, note="In Warwickshire airspace", location=location),
+                message=format_message(ac, note="In Local airspace", location=location),
                 priority=4,
                 tags="dart",
                 url=map_url(ac),
