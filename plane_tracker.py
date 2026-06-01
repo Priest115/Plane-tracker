@@ -437,25 +437,23 @@ def check_military(state):
                 url=map_url(ac),
             )
 
-    # Pass 2: Local zone — any military type, deduped via airborne dict
-    warks = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
-    log(f"Military over local zone: {len(warks)}")
-    for ac in warks:
-        icao    = (ac.get("hex") or "").lower()
-        ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
-        mil_key = f"mil_w_{icao}"
-        if icao and mil_key not in state["airborne"]:
-            state["airborne"][mil_key] = True
-            log(f"  LOCAL ZONE: {ac_type}")
-            log_sighting(state, "warks", ac=ac)
-            location = get_location(ac)
-            ntfy(
-                title=f"Military overhead - {ac_type}",
-                message=format_message(ac, note="In local zone", location=location),
-                priority=4,
-                tags="dart",
-                url=map_url(ac),
-            )
+# Pass 2: Local zone — update position every poll, no dedup
+warks = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
+log(f"Military over local zone: {len(warks)}")
+for ac in warks:
+    icao    = (ac.get("hex") or "").lower()
+    ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
+    if icao:
+        log(f"  LOCAL ZONE: {ac_type}")
+        log_sighting(state, "warks", ac=ac)
+        location = get_location(ac)
+        ntfy(
+            title=f"Military overhead - {ac_type}",
+            message=format_message(ac, note="In local zone", location=location),
+            priority=2,
+            tags="dart",
+            url=map_url(ac),
+        )
 
     # Pass 3: UK-wide — interesting types, daily dedup is intentional here
     uk = [a for a in airborne if in_bounds(a, UK_BOUNDS)]
