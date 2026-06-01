@@ -36,4 +36,6 @@ jobs:
       - name: Run tracker
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          HOME_LAT: ${{ secrets.HOME_LAT }}
+          HOME_LON: ${{ secrets.HOME_LON }}
         run: python plane_tracker.py --once
