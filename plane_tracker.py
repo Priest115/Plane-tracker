@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import os
 import time
 from datetime import date, datetime
@@ -12,7 +13,11 @@ import requests
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "plane_tracker_1998_2026_05_30")
 POLL_INTERVAL = 120
 
-# Local zone — any military aircraft here notifies on every poll with updated position
+# Minimum distance (km) a local zone aircraft must move before sending
+# another position update. Prevents spam for circling/hovering aircraft.
+LOCAL_NOTIFY_KM = 10
+
+# Local zone — any military aircraft here notifies with position updates
 LOCAL_ZONE_BOUNDS = {
     "lat_min": 51.65,
     "lat_max": 53.05,
@@ -93,7 +98,7 @@ WARBIRD_WATCHLIST = [
 GLOBALLY_RARE_TYPES = {"B2","U2","WC135","B52","B1","RC135","E3","RQ4","WP3"}
 DAILY_NOTIFY_TYPES  = {"F35","F22","F15","F16","A10","C17","P8","E7","AH64","F18",
                        "MRTT","KC135","B703","K35R"}
-SKIP_TYPES          = {"EF","EUFI","C130","A400","CH47","H135","AS365", "B212"}
+SKIP_TYPES          = {"EF","EUFI","C130","A400","CH47","H135","AS365"}
 
 MIN_ALT_FT    = 500
 MAX_POSITIONS = 100
@@ -125,7 +130,8 @@ def load_state():
     return {
         "date": "", "airborne": {},
         "seen_uk": {}, "seen_global": {},
-        "heartbeat_date": "", "daily_log": [], "flight_positions": {},
+        "heartbeat_date": "", "daily_log": [],
+        "flight_positions": {}, "local_positions": {},
     }
 
 
@@ -141,8 +147,9 @@ def maybe_reset_daily(state):
             "date": today,
             "seen_uk": {}, "seen_global": {},
             "daily_log": [], "flight_positions": {},
+            "local_positions": {},
         })
-    for key in ("airborne", "seen_uk", "seen_global"):
+    for key in ("airborne", "seen_uk", "seen_global", "local_positions"):
         state.setdefault(key, {})
     state.setdefault("daily_log", [])
     state.setdefault("flight_positions", {})
@@ -221,16 +228,59 @@ def get_type(ac):
     return (ac.get("t") or ac.get("type") or "").upper().replace("-", "").replace(" ", "")
 
 
+def type_matches(ac_type, code):
+    """Match if ac_type equals code or code followed by up to 2 letter suffixes.
+    Prevents e.g. 'B2' matching 'B212' (Bell 212 helicopter)."""
+    if not ac_type.startswith(code):
+        return False
+    suffix = ac_type[len(code):]
+    return suffix == "" or (len(suffix) <= 2 and suffix.isalpha())
+
+
 def is_globally_rare(ac):
-    return any(r in get_type(ac) for r in GLOBALLY_RARE_TYPES)
+    t = get_type(ac)
+    return any(type_matches(t, r) for r in GLOBALLY_RARE_TYPES)
 
 
 def is_daily_notify(ac):
-    return any(d in get_type(ac) for d in DAILY_NOTIFY_TYPES)
+    t = get_type(ac)
+    return any(type_matches(t, d) for d in DAILY_NOTIFY_TYPES)
 
 
 def is_skipped_uk(ac):
-    return any(s in get_type(ac) for s in SKIP_TYPES)
+    t = get_type(ac)
+    return any(type_matches(t, s) for s in SKIP_TYPES)
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Great-circle distance in km between two lat/lon points."""
+    r = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlon / 2) ** 2)
+    return r * 2 * math.asin(math.sqrt(a))
+
+
+def has_moved(state, icao, lat, lon):
+    """Return True if aircraft has moved more than LOCAL_NOTIFY_KM since last ping,
+    or has no previous position recorded (first detection in zone)."""
+    prev = state.get("local_positions", {}).get(icao)
+    if not prev:
+        return True
+    try:
+        dist = haversine_km(prev["lat"], prev["lon"], lat, lon)
+        return dist >= LOCAL_NOTIFY_KM
+    except Exception:
+        return True
+
+
+def update_local_position(state, icao, lat, lon):
+    state.setdefault("local_positions", {})[icao] = {
+        "lat": lat, "lon": lon,
+        "time": datetime.now().strftime("%H:%M"),
+    }
 
 
 def map_url(ac):
@@ -418,7 +468,7 @@ def check_military(state):
     warbird_keys = {(b.get("reg") or b.get("hex", "")).upper() for b in WARBIRD_WATCHLIST}
     log(f"Military globally: {len(all_mil)}")
 
-    # Pass 1: Globally rare — notify once per continuous flight via airborne dict
+    # Pass 1: Globally rare — once per continuous flight via airborne dict
     for ac in airborne:
         if not is_globally_rare(ac):
             continue
@@ -438,14 +488,18 @@ def check_military(state):
                 url=map_url(ac),
             )
 
-    # Pass 2: Local zone — notify every poll with updated position (no dedup)
+    # Pass 2: Local zone — notify on entry and when moved > LOCAL_NOTIFY_KM
     local = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
     log(f"Military over local zone: {len(local)}")
     for ac in local:
         icao    = (ac.get("hex") or "").lower()
         ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
-        if icao:
-            log(f"  LOCAL ZONE: {ac_type}")
+        lat, lon = ac.get("lat"), ac.get("lon")
+        if not icao or lat is None or lon is None:
+            continue
+        if has_moved(state, icao, lat, lon):
+            update_local_position(state, icao, lat, lon)
+            log(f"  LOCAL ZONE (moved): {ac_type}")
             log_sighting(state, "warks", ac=ac)
             location = get_location(ac)
             ntfy(
@@ -455,8 +509,17 @@ def check_military(state):
                 tags="dart",
                 url=map_url(ac),
             )
+        else:
+            log(f"  LOCAL ZONE (no movement): {ac_type}")
 
-    # Pass 3: UK-wide — interesting types, first sighting per aircraft per day
+    # Remove local_positions for aircraft no longer in zone
+    current_local = {(a.get("hex") or "").lower() for a in local}
+    state["local_positions"] = {
+        k: v for k, v in state.get("local_positions", {}).items()
+        if k in current_local
+    }
+
+    # Pass 3: UK-wide — interesting types, first sighting per day
     uk = [a for a in airborne if in_bounds(a, UK_BOUNDS)]
     log(f"Military in UK: {len(uk)}")
     for ac in uk:
@@ -479,16 +542,12 @@ def check_military(state):
 
     # Clean up airborne dict
     current_icaos = {(a.get("hex") or "").lower() for a in all_mil}
-    stale = [
-        k for k in list(state["airborne"])
-        if k.startswith("mil_g_") and k[6:] not in current_icaos
-    ]
-    for k in stale:
+    for k in [k for k in list(state["airborne"])
+              if k.startswith("mil_g_") and k[6:] not in current_icaos]:
         del state["airborne"][k]
-    for k in [
-        k for k in list(state["airborne"])
-        if not k.startswith("mil_") and k not in current_icaos and k not in warbird_keys
-    ]:
+    for k in [k for k in list(state["airborne"])
+              if not k.startswith("mil_") and k not in current_icaos
+              and k not in warbird_keys]:
         del state["airborne"][k]
 
     return state
