@@ -11,6 +11,9 @@ from pathlib import Path
 import requests
 
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "plane_tracker_1998_2026_05_30")
+HOME_LAT       = float(os.getenv("HOME_LAT") or 0)
+HOME_LON       = float(os.getenv("HOME_LON") or 0)
+HOME_RADIUS_KM = 10  # km — adjust if needed
 POLL_INTERVAL = 120
 
 # Minimum distance (km) a local zone aircraft must move before sending
@@ -262,6 +265,13 @@ def haversine_km(lat1, lon1, lat2, lon2):
          math.sin(dlon / 2) ** 2)
     return r * 2 * math.asin(math.sqrt(a))
 
+def is_near_home(ac):
+    if not HOME_LAT or not HOME_LON:
+        return False
+    lat, lon = ac.get("lat"), ac.get("lon")
+    if lat is None or lon is None:
+        return False
+    return haversine_km(HOME_LAT, HOME_LON, lat, lon) <= HOME_RADIUS_KM
 
 def has_moved(state, icao, lat, lon):
     """Return True if aircraft has moved more than LOCAL_NOTIFY_KM since last ping,
@@ -444,6 +454,23 @@ def check_warbids(state):
 
         record_position(state, key, ac)
 
+# Home proximity — fires independently of the regular airborne notification
+        home_key = f"home_{key}"
+        if is_near_home(ac):
+            if home_key not in state["airborne"]:
+                state["airborne"][home_key] = True
+                log(f"  {name} near home!")
+                ntfy(
+                    title=f"{name} near you!",
+                    message=format_message(ac, location=get_location(ac)),
+                    priority=4,
+                    tags="airplane,house",
+                    url=map_url(ac),
+                )
+        else:
+            if home_key in state["airborne"]:
+                del state["airborne"][home_key]
+        
         if key not in state["airborne"]:
             state["airborne"][key] = True
             log(f"  {name} airborne - notifying")
@@ -540,6 +567,26 @@ def check_military(state):
                 url=map_url(ac),
             )
 
+# Home proximity — all military aircraft
+    for ac in airborne:
+        icao     = (ac.get("hex") or "").lower()
+        ac_type  = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
+        home_key = f"home_m_{icao}"
+        if icao and is_near_home(ac):
+            if home_key not in state["airborne"]:
+                state["airborne"][home_key] = True
+                log(f"  HOME PROXIMITY: {ac_type}")
+                ntfy(
+                    title=f"Military near you - {ac_type}",
+                    message=format_message(ac, location=get_location(ac)),
+                    priority=4,
+                    tags="rotating_light,house",
+                    url=map_url(ac),
+                )
+        else:
+            if home_key in state["airborne"]:
+                del state["airborne"][home_key]
+    
     # Clean up airborne dict
     current_icaos = {(a.get("hex") or "").lower() for a in all_mil}
     for k in [k for k in list(state["airborne"])
