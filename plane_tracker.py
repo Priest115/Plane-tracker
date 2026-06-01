@@ -90,7 +90,7 @@ WARBIRD_WATCHLIST = [
 
 GLOBALLY_RARE_TYPES = {"B2","U2","WC135","B52","B1","RC135","E3","RQ4","WP3"}
 DAILY_NOTIFY_TYPES  = {"F35","F22","F15","F16","A10","C17","P8","E7","AH64","F18", "MRTT", "KC135", "B703", "K35R"}
-SKIP_TYPES          = {"EF","C130","A400","CH47","H135","AS365"}
+SKIP_TYPES          = {"EF","C130","A400","CH47","H135","AS365", "B212"}
 
 MIN_ALT_FT    = 500
 MAX_POSITIONS = 100
@@ -417,14 +417,15 @@ def check_military(state):
     warbird_keys = {(b.get("reg") or b.get("hex", "")).upper() for b in WARBIRD_WATCHLIST}
     log(f"Military globally: {len(all_mil)}")
 
-    # Pass 1: Globally rare — tracked worldwide, any location
+    # Pass 1: Globally rare — tracked worldwide, deduped via airborne dict
     for ac in airborne:
         if not is_globally_rare(ac):
             continue
         icao    = (ac.get("hex") or "").lower()
         ac_type = (ac.get("t") or ac.get("type") or "Unknown").strip()
-        if icao and icao not in state["seen_global"]:
-            state["seen_global"][icao] = True
+        mil_key = f"mil_g_{icao}"
+        if icao and mil_key not in state["airborne"]:
+            state["airborne"][mil_key] = True
             log(f"  GLOBAL RARE: {ac_type}")
             log_sighting(state, "rare", ac=ac)
             location = get_location(ac)
@@ -436,26 +437,27 @@ def check_military(state):
                 url=map_url(ac),
             )
 
-    # Pass 2: Warwickshire — ANY military type, no filter
+    # Pass 2: Local zone — any military type, deduped via airborne dict
     warks = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
-    log(f"Military Locally: {len(local)}")
+    log(f"Military over local zone: {len(warks)}")
     for ac in warks:
         icao    = (ac.get("hex") or "").lower()
         ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
-        if icao and icao not in state["seen_locally"]:
-            state["seen_locally"][icao] = True
-            log(f"  LOCAL: {ac_type}")
-            log_sighting(state, "locally", ac=ac)
+        mil_key = f"mil_w_{icao}"
+        if icao and mil_key not in state["airborne"]:
+            state["airborne"][mil_key] = True
+            log(f"  LOCAL ZONE: {ac_type}")
+            log_sighting(state, "warks", ac=ac)
             location = get_location(ac)
             ntfy(
                 title=f"Military overhead - {ac_type}",
-                message=format_message(ac, note="In Local airspace", location=location),
+                message=format_message(ac, note="In local zone", location=location),
                 priority=4,
                 tags="dart",
                 url=map_url(ac),
             )
 
-    # Pass 3: UK-wide — interesting types, skip common ones
+    # Pass 3: UK-wide — interesting types, daily dedup is intentional here
     uk = [a for a in airborne if in_bounds(a, UK_BOUNDS)]
     log(f"Military in UK: {len(uk)}")
     for ac in uk:
@@ -476,9 +478,22 @@ def check_military(state):
                 url=map_url(ac),
             )
 
-    current = {(a.get("hex") or "").lower() for a in all_mil}
-    for k in [k for k in list(state["airborne"]) if k not in current and k not in warbird_keys]:
+    # Clean up airborne dict — remove military keys for aircraft no longer in feed
+    current_icaos = {(a.get("hex") or "").lower() for a in all_mil}
+    stale = [
+        k for k in list(state["airborne"])
+        if (k.startswith("mil_g_") or k.startswith("mil_w_"))
+        and k.split("mil_g_")[-1].split("mil_w_")[-1] not in current_icaos
+    ]
+    for k in stale:
         del state["airborne"][k]
+
+    # Clean up warbird airborne keys for aircraft no longer in any military feed
+    for k in [k for k in list(state["airborne"])
+              if k not in current_icaos and k not in warbird_keys
+              and not k.startswith("mil_")]:
+        del state["airborne"][k]
+
     return state
 
 
