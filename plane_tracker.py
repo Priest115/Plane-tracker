@@ -12,6 +12,7 @@ import requests
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "plane_tracker_1998_2026_05_30")
 POLL_INTERVAL = 120
 
+# Local zone — any military aircraft here notifies on every poll with updated position
 LOCAL_ZONE_BOUNDS = {
     "lat_min": 51.65,
     "lat_max": 53.05,
@@ -19,9 +20,12 @@ LOCAL_ZONE_BOUNDS = {
     "lon_max": -0.35,
 }
 
+# UK-wide — interesting types, first sighting per day
 UK_BOUNDS = {
-    "lat_min": 49.5, "lat_max": 61.0,
-    "lon_min": -8.5, "lon_max":  2.5,
+    "lat_min": 49.5,
+    "lat_max": 61.0,
+    "lon_min": -8.5,
+    "lon_max":  2.5,
 }
 
 WARBIRD_WATCHLIST = [
@@ -40,8 +44,6 @@ WARBIRD_WATCHLIST = [
     {"reg": "G-PBIX", "name": "Porky II",            "desc": "Spitfire - The Suffolk Spitfire"},
     {"reg": "G-BMSB", "name": "MJ627",               "desc": "Spitfire T.9 two-seat (ex-Irish AC) - Biggin Hill"},
     {"reg": "AB910",  "name": "AB910",               "desc": "Spitfire Vb - BBMF, Dieppe and D-Day veteran"},
-    {"reg": "G-AWGB",  "name": "163 IAC",               "desc": "Spitfire IXe - built 1945"},
-    
 
     # -- UK Strikemaster -------------------------------------------------------
     {"reg": "G-SOAF", "name": "G-SOAF",              "desc": "BAC Strikemaster - ex Sultan of Oman's Air Force"},
@@ -89,8 +91,9 @@ WARBIRD_WATCHLIST = [
 ]
 
 GLOBALLY_RARE_TYPES = {"B2","U2","WC135","B52","B1","RC135","E3","RQ4","WP3"}
-DAILY_NOTIFY_TYPES  = {"F35","F22","F15","F16","A10","C17","P8","E7","AH64","F18", "MRTT", "KC135", "B703", "K35R"}
-SKIP_TYPES          = {"EF","C130","A400","CH47","H135","AS365", "B212"}
+DAILY_NOTIFY_TYPES  = {"F35","F22","F15","F16","A10","C17","P8","E7","AH64","F18",
+                       "MRTT","KC135","B703","K35R"}
+SKIP_TYPES          = {"EF","EUFI","C130","A400","CH47","H135","AS365", "B212"}
 
 MIN_ALT_FT    = 500
 MAX_POSITIONS = 100
@@ -100,7 +103,6 @@ MIL_SOURCES = [
     "https://api.adsb.lol/v2/mil",
     "https://api.adsb.one/v2/mil",
 ]
-
 WARBIRD_SOURCES = [
     "https://api.adsb.fi/v1",
     "https://api.adsb.lol/v2",
@@ -122,7 +124,7 @@ def load_state():
             pass
     return {
         "date": "", "airborne": {},
-        "seen_warks": {}, "seen_uk": {}, "seen_global": {},
+        "seen_uk": {}, "seen_global": {},
         "heartbeat_date": "", "daily_log": [], "flight_positions": {},
     }
 
@@ -137,10 +139,10 @@ def maybe_reset_daily(state):
     if state.get("date") != today:
         state.update({
             "date": today,
-            "seen_warks": {}, "seen_uk": {}, "seen_global": {},
+            "seen_uk": {}, "seen_global": {},
             "daily_log": [], "flight_positions": {},
         })
-    for key in ("airborne", "seen_warks", "seen_uk", "seen_global"):
+    for key in ("airborne", "seen_uk", "seen_global"):
         state.setdefault(key, {})
     state.setdefault("daily_log", [])
     state.setdefault("flight_positions", {})
@@ -166,6 +168,7 @@ def fetch_all_military():
             continue
     log("All military sources returned empty or failed")
     return []
+
 
 def fetch_by_reg(reg):
     for base in WARBIRD_SOURCES:
@@ -241,7 +244,6 @@ def map_url(ac):
 
 
 def reverse_geocode(lat, lon):
-    """Return nearest town/county via OpenStreetMap Nominatim (free, no key)."""
     try:
         r = requests.get(
             "https://nominatim.openstreetmap.org/reverse",
@@ -256,6 +258,13 @@ def reverse_geocode(lat, lon):
                     return addr[field]
     except Exception:
         pass
+    return None
+
+
+def get_location(ac):
+    lat, lon = ac.get("lat"), ac.get("lon")
+    if lat is not None and lon is not None:
+        return reverse_geocode(lat, lon)
     return None
 
 
@@ -288,14 +297,6 @@ def format_message(ac, note="", location=None):
     return "\n".join(lines)
 
 
-def get_location(ac):
-    """Reverse geocode an aircraft's current position. Returns None if unavailable."""
-    lat, lon = ac.get("lat"), ac.get("lon")
-    if lat is not None and lon is not None:
-        return reverse_geocode(lat, lon)
-    return None
-
-
 def log_sighting(state, zone, ac=None, name="", reg=""):
     entry = {"time": datetime.now().strftime("%H:%M"), "zone": zone, "name": name, "reg": reg}
     if ac:
@@ -312,7 +313,6 @@ def log_sighting(state, zone, ac=None, name="", reg=""):
 
 
 def record_position(state, key, ac):
-    """Append current position snapshot to flight_positions for this aircraft."""
     if not (ac.get("lat") and ac.get("lon")):
         return
     alt = ac.get("alt_baro")
@@ -408,6 +408,7 @@ def check_warbids(state):
             )
         else:
             log(f"  {name} airborne (already notified)")
+
     return state
 
 
@@ -417,7 +418,7 @@ def check_military(state):
     warbird_keys = {(b.get("reg") or b.get("hex", "")).upper() for b in WARBIRD_WATCHLIST}
     log(f"Military globally: {len(all_mil)}")
 
-    # Pass 1: Globally rare — tracked worldwide, deduped via airborne dict
+    # Pass 1: Globally rare — notify once per continuous flight via airborne dict
     for ac in airborne:
         if not is_globally_rare(ac):
             continue
@@ -437,25 +438,25 @@ def check_military(state):
                 url=map_url(ac),
             )
 
-# Pass 2: Local zone — update position every poll, no dedup
-warks = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
-log(f"Military over local zone: {len(warks)}")
-for ac in warks:
-    icao    = (ac.get("hex") or "").lower()
-    ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
-    if icao:
-        log(f"  LOCAL ZONE: {ac_type}")
-        log_sighting(state, "warks", ac=ac)
-        location = get_location(ac)
-        ntfy(
-            title=f"Military overhead - {ac_type}",
-            message=format_message(ac, note="In local zone", location=location),
-            priority=2,
-            tags="dart",
-            url=map_url(ac),
-        )
+    # Pass 2: Local zone — notify every poll with updated position (no dedup)
+    local = [a for a in airborne if in_bounds(a, LOCAL_ZONE_BOUNDS)]
+    log(f"Military over local zone: {len(local)}")
+    for ac in local:
+        icao    = (ac.get("hex") or "").lower()
+        ac_type = (ac.get("t") or ac.get("type") or "Military aircraft").strip()
+        if icao:
+            log(f"  LOCAL ZONE: {ac_type}")
+            log_sighting(state, "warks", ac=ac)
+            location = get_location(ac)
+            ntfy(
+                title=f"Military overhead - {ac_type}",
+                message=format_message(ac, note="In local zone", location=location),
+                priority=2,
+                tags="dart",
+                url=map_url(ac),
+            )
 
-    # Pass 3: UK-wide — interesting types, daily dedup is intentional here
+    # Pass 3: UK-wide — interesting types, first sighting per aircraft per day
     uk = [a for a in airborne if in_bounds(a, UK_BOUNDS)]
     log(f"Military in UK: {len(uk)}")
     for ac in uk:
@@ -476,20 +477,18 @@ for ac in warks:
                 url=map_url(ac),
             )
 
-    # Clean up airborne dict — remove military keys for aircraft no longer in feed
+    # Clean up airborne dict
     current_icaos = {(a.get("hex") or "").lower() for a in all_mil}
     stale = [
         k for k in list(state["airborne"])
-        if (k.startswith("mil_g_") or k.startswith("mil_w_"))
-        and k.split("mil_g_")[-1].split("mil_w_")[-1] not in current_icaos
+        if k.startswith("mil_g_") and k[6:] not in current_icaos
     ]
     for k in stale:
         del state["airborne"][k]
-
-    # Clean up warbird airborne keys for aircraft no longer in any military feed
-    for k in [k for k in list(state["airborne"])
-              if k not in current_icaos and k not in warbird_keys
-              and not k.startswith("mil_")]:
+    for k in [
+        k for k in list(state["airborne"])
+        if not k.startswith("mil_") and k not in current_icaos and k not in warbird_keys
+    ]:
         del state["airborne"][k]
 
     return state
