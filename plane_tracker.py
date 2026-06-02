@@ -125,7 +125,7 @@ EXCLUDE_TYPES = {
     "G12T","G115","G109",   # Grob Prefect/Tutor
     "TEXN","T6",            # Texan II
     "PC9","PC21",           # Pilatus trainers
-    H135","AS365",                       # SAR/police
+    "H135","AS365",         # SAR/police
     "EC35"
 }
 
