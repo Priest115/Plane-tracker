@@ -117,7 +117,6 @@ SKIP_TYPES = {
     "LYNX","LYX",                         # Lynx
     "SA33","PUMA",                        # Puma
     "AW15","WILD",                        # Wildcat
-    "H135","AS365",                       # SAR/police
 }
 
 # Always excluded regardless of zone — training types and light aircraft
@@ -126,6 +125,8 @@ EXCLUDE_TYPES = {
     "G12T","G115","G109",   # Grob Prefect/Tutor
     "TEXN","T6",            # Texan II
     "PC9","PC21",           # Pilatus trainers
+    H135","AS365",                       # SAR/police
+    "EC35"
 }
 
 
