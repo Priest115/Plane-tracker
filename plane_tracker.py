@@ -18,7 +18,7 @@ POLL_INTERVAL = 120
 
 # Minimum distance (km) a local zone aircraft must move before sending
 # another position update. Prevents spam for circling/hovering aircraft.
-LOCAL_NOTIFY_KM = 10
+LOCAL_NOTIFY_KM = 25
 
 # Local zone — any military aircraft here notifies with position updates
 LOCAL_ZONE_BOUNDS = {
