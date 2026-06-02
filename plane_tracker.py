@@ -99,9 +99,35 @@ WARBIRD_WATCHLIST = [
 ]
 
 GLOBALLY_RARE_TYPES = {"B2","U2","WC135","B52","B1","RC135","E3","RQ4","WP3"}
-DAILY_NOTIFY_TYPES  = {"F35","F22","F15","F16","A10","C17","P8","E7","AH64","F18",
-                       "MRTT","KC135","B703","K35R"}
-SKIP_TYPES          = {"EF","EUFI","C130","A400","CH47","H135","AS365"}
+DAILY_NOTIFY_TYPES = {
+    # Jet fighters
+    "F35","F22","F15","F16","A10","F18",
+    # Apache only — other helicopters too noisy UK-wide
+    "AH64",
+    # Transport & tanker
+    "C17","C130","A400","MRTT","KC135","B703","K35R",
+    # ISR & patrol
+    "P8","E7",
+}
+
+SKIP_TYPES = {
+    "EF","EUFI",                          # Typhoon
+    "CH47",                               # Chinook
+    "AW10",                               # Merlin
+    "LYNX","LYX",                         # Lynx
+    "SA33","PUMA",                        # Puma
+    "AW15","WILD",                        # Wildcat
+    "H135","AS365",                       # SAR/police
+}
+
+# Always excluded regardless of zone — training types and light aircraft
+# Add to this as you encounter unwanted types in the logs
+EXCLUDE_TYPES = {
+    "G12T","G115","G109",   # Grob Prefect/Tutor
+    "TEXN","T6",            # Texan II
+    "PC9","PC21",           # Pilatus trainers
+}
+
 
 MIN_ALT_FT    = 500
 MAX_POSITIONS = 100
@@ -254,6 +280,14 @@ def is_skipped_uk(ac):
     t = get_type(ac)
     return any(type_matches(t, s) for s in SKIP_TYPES)
 
+def is_mlat(ac):
+    """Aircraft positioned by multilateration rather than ADS-B — typically small/light types."""
+    return (ac.get("type") or "").lower() == "mlat"
+
+def is_excluded(ac):
+    """Always-exclude list — training aircraft and unwanted light types."""
+    t = get_type(ac)
+    return any(type_matches(t, e) for e in EXCLUDE_TYPES)
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Great-circle distance in km between two lat/lon points."""
@@ -491,7 +525,7 @@ def check_warbids(state):
 
 def check_military(state):
     all_mil  = fetch_all_military()
-    airborne = [a for a in all_mil if is_airborne(a)]
+    airborne = [a for a in all_mil if is_airborne(a) and not is_mlat(a) and not is_excluded(a)]
     warbird_keys = {(b.get("reg") or b.get("hex", "")).upper() for b in WARBIRD_WATCHLIST}
     log(f"Military globally: {len(all_mil)}")
 
