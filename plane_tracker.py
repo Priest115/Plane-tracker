@@ -22,10 +22,10 @@ LOCAL_NOTIFY_KM = 25
 
 # Local zone — any military aircraft here notifies with position updates
 LOCAL_ZONE_BOUNDS = {
-    "lat_min": 51.65,
-    "lat_max": 53.05,
-    "lon_min": -3.15,
-    "lon_max": -0.35,
+    "lat_min": 51.65,  # just south of Brize Norton
+    "lat_max": 52.70,  # north Warwickshire
+    "lon_min": -2.00,  # west Warwickshire
+    "lon_max": -1.10,  # east Warwickshire
 }
 
 # UK-wide — interesting types, first sighting per day
