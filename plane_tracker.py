@@ -127,6 +127,7 @@ EXCLUDE_TYPES = {
     "PC9","PC21",           # Pilatus trainers
     "H135","AS365",         # SAR/police
     "EC35", "E50P",
+    "F900",
 }
 
 
